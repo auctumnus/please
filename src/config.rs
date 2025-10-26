@@ -6,19 +6,19 @@ use std::fs;
 pub const DEFAULT_CONFIG_FILE: &str = r#"// please cli configuration
 // defaults are listed below
 {
-    // Your API key for the endpoint
+    // Your API key for the endpoint (required)
     "api-key": "your_api_key_here",
 
-    // Model to use (default: "anthropic/claude-haiku-4.5")
+    // Model to use
     "model": "anthropic/claude-haiku-4.5",
 
-    // Whether to suppress informational messages (default: false)
+    // Whether to suppress informational messages
     "quiet": false,
 
-    // Shell to use for executing commands (default: "/usr/bin/env sh")
+    // Shell to use for executing commands
     "shell": "/usr/bin/env sh",
 
-    // Endpoint URL (default: "https://openrouter.ai/api/v1")
+    // Endpoint URL
     "endpoint": "https://openrouter.ai/api/v1",
 
     "prompts": {

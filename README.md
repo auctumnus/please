@@ -21,7 +21,7 @@ nix shell github:auctumnus/please
 ```sh
 $ please config
 No config file found. Create one now? (y/n): y
-# opens config in editor so you can fill in your api key
+# opens config in $EDITOR so you can fill in your api key
 
 $ please find all .rs files modified in the last 2 days
 Thinking...
@@ -38,6 +38,43 @@ Press Enter to run, type feedback to refine, or press arrow keys to edit the com
 
 * * * Celebration! * * *
 ```
+
+## configuration
+
+place a [json5](https://json5.org/) file in `$XDG_CONFIG_HOME/please/config.json{,5}` with this schema:
+
+```json5
+// please cli configuration
+// defaults are listed below
+{
+    // Your API key for the endpoint (required)
+    "api-key": "your_api_key_here",
+
+    // Model to use
+    "model": "anthropic/claude-haiku-4.5",
+
+    // Whether to suppress informational messages
+    "quiet": false,
+
+    // Shell to use for executing commands
+    "shell": "/usr/bin/env sh",
+
+    // Endpoint URL
+    "endpoint": "https://openrouter.ai/api/v1",
+
+    "prompts": {
+        // Prompt template for generating shell commands
+        "command": "You are an expert in the Linux shell. The user would like to perform a task in the shell. \
+ Please return ONLY a single shell command compatible with the user's shell (it will be ran with `$SHELL`). \
+ Prefer single-line solutions. Do not include any markdown formatting, explanations, or multiple options. \
+ Just return the raw command that can be executed directly.",
+    }
+}
+```
+
+configuration can also be passed in through environment variables; the equivalent for each is
+`PLEASE_$VAR` where `VAR` is a an UPPER_SNAKE_CASE version of the variable name (so "api-key" is PLEASE_API_KEY, "prompts.command" is PLEASE_PROMPTS_COMMAND)
+
 
 ## known bugs
 
