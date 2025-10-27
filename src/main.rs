@@ -197,7 +197,15 @@ fn run_command(command: &str, shell: &str) -> Result<()> {
         anyhow::bail!("Invalid shell configuration");
     }
 
-    let command = format!("shopt -s extglob globstar nullglob\n{command}");
+    let shell_name = shell_parts.last().unwrap();
+
+    // Only add shopt for bash and zsh (which support it)
+    // Fish, sh, and other shells don't support shopt
+    let command = if shell_name.contains("bash") || shell_name.contains("zsh") {
+        format!("shopt -s extglob globstar nullglob\n{command}")
+    } else {
+        command.to_string()
+    };
 
     let status = if shell_parts.len() == 1 {
         Command::new(shell_parts[0])
