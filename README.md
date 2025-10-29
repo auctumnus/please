@@ -62,12 +62,20 @@ place a [json5](https://json5.org/) file in `$XDG_CONFIG_HOME/please/config.json
     // Endpoint URL
     "endpoint": "https://openrouter.ai/api/v1",
 
+    // Response format of the model
+    // accepted values are "harmony" | "json_schema"
+    // if not specified, defaults to "json_schema"
+    // "response-format": "json_schema",
+
     "prompts": {
         // Prompt template for generating shell commands
         "command": "You are an expert in the Linux shell. The user would like to perform a task in the shell. \
  Please return ONLY a single shell command compatible with the user's shell (it will be ran with `$SHELL`). \
  Prefer single-line solutions. Do not include any markdown formatting, explanations, or multiple options. \
- Just return the raw command that can be executed directly.",
+ Your answer should just be the raw command that can be executed directly. \
+ Do not include $SHELL at the start of the command the user will take care of inserting that. \
+ The command should be broken into segments (e.g `echo foo` -> [\"echo\", \"foo\"]). \
+ Respond with a JSON object as follows { \"command\":  [\"YOUR\", \"COMMAND\"] }",
     }
 }
 ```

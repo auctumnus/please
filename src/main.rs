@@ -79,7 +79,7 @@ async fn main() -> Result<()> {
         ui.show_message("Thinking...");
     }
     let mut current_command = match api_client
-        .request_command(&system_prompt, &user_request)
+        .request_command(&system_prompt, &user_request, &config)
         .await
     {
         Ok(cmd) => cmd,
@@ -111,6 +111,7 @@ async fn main() -> Result<()> {
                         &user_request,
                         &current_command,
                         &feedback,
+                        &config,
                     )
                     .await
                 {
