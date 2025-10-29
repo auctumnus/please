@@ -21,12 +21,20 @@ pub const DEFAULT_CONFIG_FILE: &str = r#"// please cli configuration
     // Endpoint URL
     "endpoint": "https://openrouter.ai/api/v1",
 
+    // Response format of the model
+    // accepted values are "harmony" | "json_schema"
+    // if not specified, defaults to "json_schema"
+    // "response-format": "json_schema"
+
     "prompts": {
         // Prompt template for generating shell commands
         "command": "You are an expert in the Linux shell. The user would like to perform a task in the shell. \
  Please return ONLY a single shell command compatible with the user's shell (it will be ran with `$SHELL`). \
  Prefer single-line solutions. Do not include any markdown formatting, explanations, or multiple options. \
- Just return the raw command that can be executed directly.",
+ Your answer should just be the raw command that can be executed directly. \
+ Do not include $SHELL at the start of the command the user will take care of inserting that. \
+ The command should be broken into segments (e.g `echo foo` -> [\"echo\", \"foo\"]). \
+ Respond with a JSON object as follows { \"command\":  [\"YOUR\", \"COMMAND\"] }",
     }
 }
 
@@ -34,9 +42,32 @@ pub const DEFAULT_CONFIG_FILE: &str = r#"// please cli configuration
 /* vim: set ft=json5: */
 "#;
 
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ResponseFormat {
+    Harmony,
+    JsonSchema
+}
+impl Default for ResponseFormat {
+    fn default() -> Self {
+        ResponseFormat::JsonSchema
+    }
+} 
+
+impl TryFrom::<&String> for ResponseFormat {
+    type Error = String;
+    fn try_from(value: &String) -> anyhow::Result<Self, Self::Error> {
+        match value.as_str() {
+            "json_schema" => Ok(Self::JsonSchema),
+            "harmony" => Ok(ResponseFormat::Harmony),
+            _ => Err(format!("Unrecognized response format specified {}", value))
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Config {
-    #[serde(rename = "api-key")]
+    #[serde(default, rename = "api-key")]
     pub api_key: String,
 
     #[serde(default = "default_model")]
@@ -50,6 +81,9 @@ pub struct Config {
 
     #[serde(default = "default_endpoint")]
     pub endpoint: String,
+
+    #[serde(default, rename = "response-format")]
+    pub response_format: ResponseFormat,
 
     #[serde(default)]
     pub prompts: Prompts,
@@ -81,11 +115,18 @@ fn default_endpoint() -> String {
     "https://openrouter.ai/api/v1".to_string()
 }
 
+fn default_response_format() -> ResponseFormat {
+    ResponseFormat::JsonSchema
+}
+
 fn default_command_prompt() -> String {
     r#"You are an expert in the Linux shell. The user would like to perform a task in the shell.
 Please return ONLY a single shell command compatible with the user's shell (it will be ran with `$SHELL`).
 Prefer single-line solutions. Do not include any markdown formatting, explanations, or multiple options.
-Just return the raw command that can be executed directly."#.to_string()
+Your answer should just be the raw command that can be executed directly.
+Do not include $SHELL at the start of the command the user will take care of inserting that.
+The command should be broken into segments (e.g `echo foo` -> ["echo", "foo"]).
+Respond with a JSON object as follows { "command":  ["YOUR", "COMMAND"] }"#.to_string()
 }
 
 impl Config {
@@ -113,6 +154,7 @@ impl Config {
                 quiet: false,
                 shell: default_shell(),
                 endpoint: default_endpoint(),
+                response_format: default_response_format(),
                 prompts: Prompts::default(),
             }
         };
@@ -134,6 +176,15 @@ impl Config {
             config.endpoint = endpoint;
         }
 
+        if let Ok(response_format) = env::var("PLEASE_RESPONSE_FORMAT") {
+            if let Ok(rf) = ResponseFormat::try_from(&response_format) {
+                config.response_format = rf;
+            } else {
+                let msg = format!("Unrecognized response format specified in PLEASE_RESPONSE_FORMAT ({})", response_format);
+                anyhow::bail!(msg);
+            }
+        }
+
         if let Ok(quiet) = env::var("PLEASE_QUIET") {
             config.quiet = quiet == "1" || quiet.to_lowercase() == "true";
         }
@@ -141,7 +192,6 @@ impl Config {
         if let Ok(command_prompt) = env::var("PLEASE_PROMPTS_COMMAND") {
             config.prompts.command = command_prompt;
         }
-
         Ok(config)
     }
 
