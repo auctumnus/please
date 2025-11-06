@@ -1,5 +1,8 @@
 use anyhow::{Context, Result};
+use regex::Regex;
 use serde::{Deserialize, Serialize};
+
+use crate::config::{Config, ResponseFormat};
 
 #[derive(Debug, Serialize)]
 struct ChatRequest {
@@ -21,6 +24,11 @@ struct ChatResponse {
 #[derive(Debug, Deserialize)]
 struct Choice {
     message: Message,
+}
+
+#[derive(Debug, Deserialize)]
+struct CommandResponse {
+    command: Vec<String>,
 }
 
 pub struct ApiClient {
@@ -45,6 +53,7 @@ impl ApiClient {
         &self,
         system_prompt: &str,
         user_message: &str,
+        config: &Config,
     ) -> Result<String> {
         let url = format!("{}/chat/completions", self.endpoint);
 
@@ -109,9 +118,11 @@ impl ApiClient {
             .context("No response from API")?;
 
         // Clean up the response (remove markdown code blocks)
-        let command = clean_command_response(&raw_response);
-
-        Ok(command)
+        let command = match config.response_format {
+            ResponseFormat::Harmony => cleave_start_parse_json(&raw_response),
+            _ => Ok(clean_command_response(&raw_response)),
+        };
+        command
     }
 
     /// Continue a conversation with feedback from the user
@@ -121,6 +132,7 @@ impl ApiClient {
         original_request: &str,
         previous_command: &str,
         feedback: &str,
+        config: &Config,
     ) -> Result<String> {
         let url = format!("{}/chat/completions", self.endpoint);
 
@@ -178,10 +190,28 @@ impl ApiClient {
             .context("No response from API")?;
 
         // Clean up the response (remove markdown code blocks)
-        let command = clean_command_response(&raw_response);
-
-        Ok(command)
+        let command = match config.response_format {
+            ResponseFormat::Harmony => cleave_start_parse_json(&raw_response),
+            _ => Ok(clean_command_response(&raw_response)),
+        };
+        command
     }
+}
+
+fn cleave_start_parse_json(response: &str) -> Result<String> {
+    let regex = Regex::new(r"(?m)<\|end\|>(\{.*\}$)").unwrap();
+    let captures = regex
+        .captures(response)
+        .context("Harmony parse - Failed to match regex")?;
+
+    let json_str = captures
+        .get(1)
+        .context("Harmony parse - Empty json section")?;
+
+    let json_str = json_str.as_str();
+    let command_response: CommandResponse = serde_json::from_str(json_str)
+        .expect(format!("Failed to parse JSON: {}", json_str).as_str());
+    return Ok(command_response.command.join(" "));
 }
 
 /// Clean up the command response by removing markdown code blocks and extra text
