@@ -42,11 +42,15 @@
             ];
           };
 
-          nativeBuildInputs = with pkgs; [
-            rustToolchain
-            pkg-config
-            cargo-llvm-cov
-          ];
+          nativeBuildInputs =
+            with pkgs;
+            [
+              rustToolchain
+              pkg-config
+            ]
+            ++ lib.optionals stdenv.isLinux [
+              cargo-llvm-cov
+            ];
 
           buildInputs =
             with pkgs;
@@ -55,8 +59,7 @@
               postgresql
             ]
             ++ lib.optionals stdenv.isDarwin [
-              darwin.apple_sdk.frameworks.Security
-              darwin.apple_sdk.frameworks.CoreFoundation
+              apple-sdk_11
             ];
 
         in
